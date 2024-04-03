@@ -15,7 +15,7 @@ for item in civit_catalog:
             continue
         size = item['modelVersions'][0]['files'][0]['sizeKB']
         size_MB = size / 1024
-        lora_dist[item['id']] = {'downloadCount': count, 'sizeMB': size_MB}
+        lora_dist[item['id']] = {'downloadCount': count, 'sizeMB': round(size_MB, 2)}
 
 # Sort the dictionary by downloadCount
 lora_dist = dict(sorted(lora_dist.items(), key=lambda item: item[1]['downloadCount'], reverse=True))
