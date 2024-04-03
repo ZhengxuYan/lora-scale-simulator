@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 class Request:
     """A single request."""
     model_name: str
-    adapter_idx: int
+    adapter_id: int
     data: Any
     idx: int
     metadata: Optional[Dict[str, Any]] = None
@@ -19,3 +19,4 @@ class Request:
 #     idx: int
 #     time_stamp: Dict            # debug only
 #     submit_time: float = None   # This will be filled later
+

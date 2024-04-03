@@ -7,9 +7,15 @@ from typing import Any, List, Sequence, Dict, Optional
 import numpy as np
 from scipy.stats import pareto
 from request import Request
+from bisect import bisect_left
+import random
+import pickle
 
 eps = 1e-6
 DEFAULT_WARMUP = 10
+
+with open('lora_dist_model.pkl', 'rb') as f:
+    cdf_model = pickle.load(f)
 
 class MMPPSampler:
     """Sample a sequence of requests from a Markov Modulated Poisson Process."""
@@ -173,7 +179,7 @@ class DeterministicProcess(ArrivalProcess):
         interval = 1 / self.rate_
         ticks = [start + i * interval for i in range(n_requests)]
         return Workload(ticks, [
-            Request(model_name, None, slo, i, {}) for i in range(n_requests)])
+            Request(get_lora(seed + i)[1], get_lora(seed + i)[0], None, i, {}) for i in range(len(ticks))])
 
 
 class GammaProcess(ArrivalProcess):
@@ -224,7 +230,7 @@ class GammaProcess(ArrivalProcess):
                           seed: int = 0):
         ticks = self.generate_arrivals(start, duration, seed)
         return Workload(ticks, [
-            Request(model_name, None, slo, i, {}) for i in range(len(ticks))])
+            Request(get_lora(seed + i)[1], get_lora(seed + i)[0], None, i, {}) for i in range(len(ticks))])
 
 
 class PoissonProcess(GammaProcess):
@@ -288,7 +294,7 @@ class UniformMMPP(ArrivalProcess):
         ticks, _ = sampler.sample(n_requests)
         ticks = [start + t for t in ticks[1:]]
         return Workload(ticks, [
-            Request(model_name, None, slo, i, {}) for i in range(n_requests)])
+            Request(get_lora(seed + i)[1], get_lora(seed + i)[0], None, i, {}) for i in range(len(ticks))])
 
 
 class ParetoProcess:
@@ -313,7 +319,7 @@ class ParetoProcess:
                           seed: int = 0):
         ticks = self.generate_arrivals(start, duration, seed)
         return Workload(ticks, [
-            Request(model_name, None, slo, i, {}) for i in range(len(ticks))])
+            Request(get_lora(seed + i)[1], get_lora(seed + i)[0], None, i, {}) for i in range(len(ticks))])
 
     def rate(self):
         """TODO(Hao): this is wrong."""
@@ -502,10 +508,42 @@ def to_str_round(x: Any, decimal: int = 6):
         return str(x)
     raise ValueError("Invalid value: " + str(x))
 
+
+def binary_search_with_uniform_choice(cdf, random_value):
+    # Find the insertion point for the random_value in the CDF list
+    index = bisect_left(cdf, (random_value,))
+    
+    # If the random value is greater than the last CDF value, uniformly choose among all entries with the same CDF value
+    if index == len(cdf):
+        max_cdf_value = cdf[-1][0]
+        candidates = [item for item in cdf if item[0] == max_cdf_value]
+        _, item_id = random.choice(candidates)
+        return item_id
+    
+    # If we found an exact match, just return the item
+    if cdf[index][0] == random_value:
+        return cdf[index][1]
+    
+    # If the random value is less than the CDF value at the found index, check for duplicate CDF values
+    if index > 0 and cdf[index - 1][0] == cdf[index][0]:
+        # Collect all items with the same CDF value
+        same_cdf_value = cdf[index][0]
+        candidates = [item for item in cdf if item[0] == same_cdf_value]
+        _, item_id = random.choice(candidates)
+        return item_id
+    
+    # Otherwise, return the item at the found index
+    return cdf[index][1]
+
+def get_lora(seed):
+    rand = random.Random(seed)
+    random_lora = binary_search_with_uniform_choice(cdf_model, rand.random())
+    return random_lora
+
 if __name__ == "__main__":
     w1 = PoissonProcess(10).generate_workload("m", start=0, duration=1000, seed=0)
-    w2 = GammaProcess(10, 5).generate_workload("m", start=0, duration=1000, seed=0)
-    exponential = GammaProcess(1, 5).generate_workload("m", start=0, duration=1000, seed=0)
+    w2 = GammaProcess(10, 5).generate_workload("m", start=0, duration=1000, seed=42)
+    # exponential = GammaProcess(1, 5).generate_workload("m", start=0, duration=1000, seed=0)
 
     w3 = w1 + w2
     print(w3)
@@ -514,3 +552,13 @@ if __name__ == "__main__":
     print(len(ws))
     print(ws[0])
     print(ws[1])
+
+    w1_requests = w1.requests
+    w2_requests = w2.requests
+    w3_requests = w3.requests
+    print(w1_requests[:10])
+    print(w2_requests[:10])
+    print(w3_requests[:10])
+
+
+
