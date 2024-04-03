@@ -6,6 +6,7 @@ import random
 from typing import Any, List, Sequence, Dict, Optional
 import numpy as np
 from scipy.stats import pareto
+from request import Request
 
 eps = 1e-6
 DEFAULT_WARMUP = 10
@@ -87,16 +88,6 @@ class MMPPSampler:
                     Q[i, j] = 1 / expected_state_durations[i] / (m - 1)
         lambda_ = np.array(expected_state_request_rates)
         return cls(Q, lambda_)
-
-@dataclasses.dataclass
-class Request:
-    """A single request."""
-    model_name: str
-    data: Any
-    slo: Optional[float]
-    idx: int
-    time_stamp: Dict            # debug only
-    submit_time: float = None   # This will be filled later
 
 
 PerModelStatsResult = namedtuple("PerModelStatsResult",
