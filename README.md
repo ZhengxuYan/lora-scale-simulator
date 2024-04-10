@@ -1,1 +1,0 @@
-# lora-scale-simulator

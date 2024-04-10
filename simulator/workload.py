@@ -14,7 +14,7 @@ import pickle
 eps = 1e-6
 DEFAULT_WARMUP = 10
 
-with open('lora_dist_model.pkl', 'rb') as f:
+with open('lora_cdf_model.pkl', 'rb') as f:
     cdf_model = pickle.load(f)
 
 class MMPPSampler:
